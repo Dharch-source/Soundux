@@ -11,21 +11,12 @@ namespace Soundux::Objects
 
     void YoutubeDl::setup()
     {
-#if defined(_WIN32)
-        TinyProcessLib::Process ytdlVersion(
-            L"youtube-dl --version", L"", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
-            []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
-        TinyProcessLib::Process ffmpegVersion(
-            L"ffmpeg -version", L"", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
-            []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
-#else
         TinyProcessLib::Process ytdlVersion(
             "youtube-dl --version", "", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
             []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
         TinyProcessLib::Process ffmpegVersion(
             "ffmpeg -version", "", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
             []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
-#endif
 
         isAvailable = ytdlVersion.get_exit_status() == 0 && ffmpegVersion.get_exit_status() == 0;
         if (!isAvailable)
@@ -123,11 +114,7 @@ namespace Soundux::Objects
                     }
                 }
             };
-#if defined(_WIN32)
-            currentDownload.emplace(Helpers::widen(youtubeDlCommand), L"", onProgress);
-#else
             currentDownload.emplace(youtubeDlCommand, "", onProgress);
-#endif
 
             Fancy::fancy.logTime().success() << "Started download of " >> url << std::endl;
             auto rtn = currentDownload->get_exit_status() == 0;

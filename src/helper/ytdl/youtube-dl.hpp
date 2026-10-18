@@ -1,9 +1,17 @@
 #pragma once
 #include <json.hpp>
 #include <optional>
-#include <process.hpp>
 #include <regex>
 #include <string>
+
+// tiny-process-library keys its string type off UNICODE, which this project
+// defines globally. The library is built with the narrow char interface, so
+// this TU has to match that. misc.cpp already guards its own include the
+// same way; only headers leak the wide type into other translation units.
+#pragma push_macro("UNICODE")
+#undef UNICODE
+#include <process.hpp>
+#pragma pop_macro("UNICODE")
 
 namespace Soundux
 {
