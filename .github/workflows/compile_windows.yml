@@ -3,68 +3,76 @@ on:
     branches: [master]
     paths-ignore:
       - "**/README.md"
-      - "**/compile_linux.yml"
-      - "**/build_flatpak.yml"
       - "**/.all-contributorsrc"
-      - "**/upload_full_src.yml"
-      - "**/windows_debug.yml"
-      - "**/upload_binaries_to_draft.yml"
-  pull_request:
-    branches: [master]
+  workflow_dispatch:
 
-name: Build on Windows
+name: Build Windows portable
+
 jobs:
   build-windows:
     runs-on: windows-latest
-    strategy:
-      fail-fast: false
-      matrix:
-        language: ["cpp"]
 
     steps:
-      - name: Setup NuGet.exe for use with actions
-        uses: NuGet/setup-nuget@v1.0.5
-
       - name: Checkout
-        uses: actions/checkout@v2.3.4
+        uses: actions/checkout@v4
         with:
           submodules: recursive
+          fetch-depth: 0
 
-      - name: Install OpenSSL
-        uses: crazy-max/ghaction-chocolatey@v1.6.0
-        with:
-          args: install openssl -y
+      - name: Install build deps
+        shell: pwsh
+        run: |
+          choco install openssl --yes --no-progress
+          choco install innosetup --yes --no-progress
 
       - name: Compile Embed-Helper
-        run: "cd src/ui/impl/webview/lib/webviewpp/embed-helper && mkdir build && cd build && cmake .. && cmake --build . --config Release && cd Release && ./embed_helper ../../../../soundux-ui"
+        shell: pwsh
+        run: |
+          cd src/ui/impl/webview/lib/webviewpp/embed-helper
+          mkdir build
+          cd build
+          cmake ..
+          cmake --build . --config Release
 
-      - name: Compile
-        run: "mkdir build && cd build && cmake .. -DEMBED_PATH=src/ui/impl/webview/lib/webviewpp/embed-helper/build/Release && cmake --build . --config Release"
+      - name: Generate embedded UI header
+        shell: pwsh
+        run: |
+          cd src/ui/impl/webview/lib/webviewpp/embed-helper/build/Release
+          ./embed_helper.exe ../../../../soundux-ui
+          Get-ChildItem | Format-Table Name, Length
 
-      - name: Upload Build Artifact
-        uses: actions/upload-artifact@v2.2.4
+      - name: Compile Soundux
+        shell: pwsh
+        run: |
+          mkdir build
+          cd build
+          cmake .. -DEMBED_PATH="$env:GITHUB_WORKSPACE\src\ui\impl\webview\lib\webviewpp\embed-helper\build\Release"
+          cmake --build . --config Release
+
+      - name: List build output
+        shell: pwsh
+        run: Get-ChildItem -Recurse build\Release | Select-Object FullName, Length | Format-Table -AutoSize
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Release
+          name: soundux-windows
           path: build/Release
-
-      - name: Install InnoSetup
-        uses: crazy-max/ghaction-chocolatey@v1.6.0
-        with:
-          args: install innosetup -y
-
-      - name: Install Sed
-        uses: crazy-max/ghaction-chocolatey@v1.6.0
-        with:
-          args: install sed -y
-
-      - name: Run Sed
-        run: '&"${Env:ProgramData}\chocolatey\bin\sed.exe" -i ''s%\$PATH%D:\\a\\Soundux\\Soundux%'' deployment/innosetup/Soundux.iss'
+          if-no-files-found: error
+          retention-days: 14
 
       - name: Run InnoSetup
-        run: '&"${Env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" deployment/innosetup/Soundux.iss'
+        shell: pwsh
+        run: |
+          $iss = Get-Content deployment/innosetup/Soundux.iss -Raw
+          $iss = $iss -replace '%\$PATH%', "$env:GITHUB_WORKSPACE"
+          Set-Content deployment/innosetup/Soundux.iss -Value $iss
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" deployment/innosetup/Soundux.iss
 
-      - name: Upload Installer Artifact
-        uses: actions/upload-artifact@v2.2.4
+      - name: Upload installer artifact
+        uses: actions/upload-artifact@v4
         with:
-          name: Installer
+          name: soundux-installer
           path: deployment/innosetup/Output/setup.exe
+          if-no-files-found: warn
+          retention-days: 14
