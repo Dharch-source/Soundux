@@ -72,6 +72,12 @@ jobs:
           # $PATH is the CI placeholder the upstream sed step replaced with the
           # checkout root. String.Replace is literal, so no regex escaping here.
           $iss = $iss.Replace('$PATH', $env:GITHUB_WORKSPACE)
+          # choco innosetup ships only the default language file. Upstream's .iss
+          # lists 20+ MessagesFile compiler:Languages\*.isl paths, all of which are
+          # missing here, so drop every [Languages] row except the default.
+          $iss = ($iss -split "`r`n" | Where-Object {
+            $_ -notmatch 'MessagesFile:\s*"compiler:Languages\\'
+          }) -join "`r`n"
           Set-Content $issPath -Value $iss -NoNewline
           & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" $issPath
 
