@@ -7,11 +7,8 @@
 #include <mutex>
 #include <sstream>
 
-namespace Soundux::Helpers
+namespace Soundux::Objects
 {
-    using Objects::TtsResult;
-    using Objects::Tts;
-
     namespace
     {
         std::mutex gTtsMutex; // serialize downloads - the endpoint throttles bursts
@@ -44,7 +41,7 @@ namespace Soundux::Helpers
                 {"q", chunk}};
             if (rate != 100)
             {
-                params.emplace_back("ttsspeed", std::to_string(rate / 100.0));
+                params.emplace("ttsspeed", std::to_string(rate / 100.0));
             }
 
             httplib::Headers headers{
@@ -66,7 +63,8 @@ namespace Soundux::Helpers
                 return {};
             }
             const auto &body = res->body;
-            return {reinterpret_cast<const std::byte *>(body.data()), body.size()};
+            return std::vector<std::byte>(reinterpret_cast<const std::byte *>(body.data()),
+                                         reinterpret_cast<const std::byte *>(body.data()) + body.size());
         }
 
         bool looksLikeAudio(const std::vector<std::byte> &data)

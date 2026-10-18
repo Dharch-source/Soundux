@@ -11,12 +11,21 @@ namespace Soundux::Objects
 
     void YoutubeDl::setup()
     {
+#if defined(_WIN32)
+        TinyProcessLib::Process ytdlVersion(
+            L"youtube-dl --version", L"", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
+            []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
+        TinyProcessLib::Process ffmpegVersion(
+            L"ffmpeg -version", L"", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
+            []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
+#else
         TinyProcessLib::Process ytdlVersion(
             "youtube-dl --version", "", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
             []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
         TinyProcessLib::Process ffmpegVersion(
             "ffmpeg -version", "", []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {},
             []([[maybe_unused]] const char *message, [[maybe_unused]] std::size_t size) {});
+#endif
 
         isAvailable = ytdlVersion.get_exit_status() == 0 && ffmpegVersion.get_exit_status() == 0;
         if (!isAvailable)
@@ -99,8 +108,16 @@ namespace Soundux::Objects
                 currentDownload.reset();
             }
 
-            currentDownload.emplace("youtube-dl --extract-audio --audio-format mp3 --no-mtime \"" + url + "\" -o \"" +
-                                        currentTab->path + "/%(title)s.%(ext)s" + "\"",
+            auto youtubeDlCommand = widen(
+                "youtube-dl --extract-audio --audio-format mp3 --no-mtime \"" + url + "\" -o \"" +
+                currentTab->path + "/%(title)s.%(ext)s" + "\"");
+#if defined(_WIN32)
+            currentDownload.emplace(youtubeDlCommand,
+#else
+            currentDownload.emplace(
+                "youtube-dl --extract-audio --audio-format mp3 --no-mtime \"" + url + "\" -o \"" +
+                    currentTab->path + "/%(title)s.%(ext)s" + "\"",
+#endif
                                     "", [](const char *rawData, std::size_t dataLen) {
                                         std::string data(rawData, dataLen);
                                         static const std::regex progressRegex(R"(([0-9.,]+)%.*(ETA (.+)))");
