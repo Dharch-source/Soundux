@@ -33,7 +33,7 @@ jobs:
           cd src/ui/impl/webview/lib/webviewpp/embed-helper
           mkdir build
           cd build
-          cmake .. -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          cmake .. "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           cmake --build . --config Release
 
       - name: Generate embedded UI header
@@ -45,12 +45,11 @@ jobs:
 
       - name: Compile Soundux
         shell: pwsh
-        env:
-          CMAKE_POLICY_VERSION_MINIMUM: "3.5"
         run: |
           mkdir build
           cd build
-          cmake .. -DEMBED_PATH="$env:GITHUB_WORKSPACE\src\ui\impl\webview\lib\webviewpp\embed-helper\build\Release" -DCMAKE_POLICY_VERSION_MINIMUM=3.5
+          $embed = "$env:GITHUB_WORKSPACE\src\ui\impl\webview\lib\webviewpp\embed-helper\build\Release"
+          cmake .. "-DEMBED_PATH=$embed" "-DCMAKE_POLICY_VERSION_MINIMUM=3.5"
           cmake --build . --config Release
 
       - name: List build output
