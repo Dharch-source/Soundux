@@ -24,25 +24,15 @@ namespace Soundux
 {
     bool Helpers::run(const std::string &command)
     {
-#if defined(_WIN32)
-        TinyProcessLib::Process process(widen(command));
-#else
         TinyProcessLib::Process process(command);
-#endif
         return process.get_exit_status() == 0;
     }
     std::pair<std::string, bool> Helpers::getResultCompact(const std::string &command)
     {
         std::string result;
 
-#if defined(_WIN32)
-        TinyProcessLib::Process process(widen(command), L"", [&](const char *data, std::size_t dataLen) {
-            result += std::string(data, dataLen);
-        });
-#else
         TinyProcessLib::Process process(
             command, "", [&](const char *data, std::size_t dataLen) { result += std::string(data, dataLen); });
-#endif
 
         return std::make_pair(result, process.get_exit_status() == 0);
     }
@@ -50,14 +40,8 @@ namespace Soundux
     {
         std::stringstream result{};
 
-#if defined(_WIN32)
-        TinyProcessLib::Process process(widen(command), L"", [&](const char *data, std::size_t dataLen) {
-            result << std::string(data, dataLen);
-        });
-#else
         TinyProcessLib::Process process(
             command, "", [&](const char *data, std::size_t dataLen) { result << std::string(data, dataLen); });
-#endif
         auto success = process.get_exit_status() == 0;
 
         std::vector<std::string> rtn;

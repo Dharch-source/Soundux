@@ -36,6 +36,9 @@ namespace Soundux::Objects
                                const std::string &lang,
                                double rate,
                                const std::filesystem::path &cacheDir);
+
+        /** %LOCALAPPDATA%\Soundux\tts, created if missing. */
+        static std::filesystem::path defaultCacheDir();
     };
 }
 #endif

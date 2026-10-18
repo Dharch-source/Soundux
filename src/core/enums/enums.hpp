@@ -29,6 +29,8 @@ namespace Soundux
             FailedToDelete,
             FailedToMute,
             FailedToSetCustomVolume,
+            TtsEmptyText,
+            TtsDownloadFailed,
         };
 
         enum class SortMode : std::uint8_t

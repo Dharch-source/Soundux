@@ -3,6 +3,7 @@
 
 #include <cstddef>
 #include <cstdlib>
+#include <ctime>
 #include <fancy.hpp>
 #include <mutex>
 #include <sstream>
@@ -81,6 +82,14 @@ namespace Soundux::Objects
             return id3 || sync || riff;
         }
     } // namespace
+
+    std::filesystem::path Tts::defaultCacheDir()
+    {
+        auto root = userCacheRoot();
+        std::error_code ec;
+        std::filesystem::create_directories(root, ec);
+        return root;
+    }
 
     TtsResult Tts::speak(const std::string &text,
                          const std::string &lang,
@@ -176,5 +185,5 @@ namespace Soundux::Objects
         result.bytes = combined.size();
         return result;
     }
-} // namespace Soundux::Helpers
+} // namespace Soundux::Objects
 #endif // _WIN32

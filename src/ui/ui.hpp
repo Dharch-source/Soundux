@@ -83,6 +83,20 @@ namespace Soundux
 
           protected:
             virtual std::optional<PlayingSound> playSound(const std::uint32_t &);
+#if defined(_WIN32)
+            virtual std::optional<PlayingSound> playSoundObject(const Sound &);
+#endif
+
+#if defined(_WIN32)
+            /**
+             * Downloads the given text through the TTS endpoint and plays the
+             * resulting mp3 through the regular routing. Only exists on Windows
+             * where this TTS module is built.
+             */
+            virtual std::optional<PlayingSound> playTextToSpeech(const std::string &text,
+                                                                const std::string &language,
+                                                                double speed);
+#endif
             virtual std::optional<PlayingSound> pauseSound(const std::uint32_t &);
             virtual std::optional<PlayingSound> resumeSound(const std::uint32_t &);
             virtual std::optional<PlayingSound> repeatSound(const std::uint32_t &, bool);

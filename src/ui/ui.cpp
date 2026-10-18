@@ -9,6 +9,10 @@
 #include <helper/misc/misc.hpp>
 #include <nfd.hpp>
 #include <optional>
+#if defined(_WIN32)
+#include <helper/tts/tts.hpp>
+#include <thread>
+#endif
 
 namespace Soundux::Objects
 {
@@ -281,59 +285,97 @@ namespace Soundux::Objects
         auto sound = Globals::gData.getSound(id);
         if (sound)
         {
-            if (!Globals::gSettings.allowOverlapping)
-            {
-                stopSounds();
-            }
-            if (Globals::gSettings.muteDuringPlayback)
-            {
-                if (Globals::gWinSound && Globals::gWinSound->getMic())
-                {
-                    if (!Globals::gWinSound->getMic()->mute(true))
-                    {
-                        onError(Enums::ErrorCode::FailedToMute);
-                    }
-                }
-            }
-            if (!Globals::gSettings.pushToTalkKeys.empty())
-            {
-                Globals::gHotKeys.pressKeys(Globals::gSettings.pushToTalkKeys);
-            }
-
-            if (Globals::gSettings.outputs.empty() && !Globals::gSettings.useAsDefaultDevice)
-            {
-                return Globals::gAudio.play(*sound);
-            }
-
-            auto playingSound = Globals::gAudio.play(*sound);
-            auto playbackDevice = Globals::gAudio.getAudioDevice(Globals::gSettings.outputs.front());
-
-            if (playbackDevice && !playbackDevice->isDefault)
-            {
-                auto remotePlayingSound = Globals::gAudio.play(*sound, playbackDevice);
-                if (playingSound && remotePlayingSound)
-                {
-                    groupedSounds->insert({playingSound->id, remotePlayingSound->id});
-                    return *playingSound;
-                }
-
-                if (playingSound)
-                    stopSound(playingSound->id);
-
-                if (remotePlayingSound)
-                    stopSound(remotePlayingSound->id);
-
-                Fancy::fancy.logTime().failure() << "Failed to play sound " << id << std::endl;
-                onError(Enums::ErrorCode::FailedToPlay);
-                return std::nullopt;
-            }
-
-            return *playingSound;
+            return playSoundObject(*sound);
         }
 
         Fancy::fancy.logTime().failure() << "Sound " << id << " not found" << std::endl;
         onError(Enums::ErrorCode::SoundNotFound);
         return std::nullopt;
+    }
+    /**
+     * Plays any Sound (a tab entry, a favorite, or an ad-hoc one built from a
+     * synthesized TTS file) through the regular Windows routing: default device,
+     * optional selected output device, mic mute and push-to-talk. Keeping this
+     * shared means TTS is treated exactly like a normal sound everywhere.
+     */
+    std::optional<PlayingSound> Window::playSoundObject(const Sound &sound)
+    {
+        if (!Globals::gSettings.allowOverlapping)
+        {
+            stopSounds();
+        }
+        if (Globals::gSettings.muteDuringPlayback)
+        {
+            if (Globals::gWinSound && Globals::gWinSound->getMic())
+            {
+                if (!Globals::gWinSound->getMic()->mute(true))
+                {
+                    onError(Enums::ErrorCode::FailedToMute);
+                }
+            }
+        }
+        if (!Globals::gSettings.pushToTalkKeys.empty())
+        {
+            Globals::gHotKeys.pressKeys(Globals::gSettings.pushToTalkKeys);
+        }
+
+        if (Globals::gSettings.outputs.empty() && !Globals::gSettings.useAsDefaultDevice)
+        {
+            return Globals::gAudio.play(sound);
+        }
+
+        auto playingSound = Globals::gAudio.play(sound);
+        auto playbackDevice = Globals::gAudio.getAudioDevice(Globals::gSettings.outputs.front());
+
+        if (playbackDevice && !playbackDevice->isDefault)
+        {
+            auto remotePlayingSound = Globals::gAudio.play(sound, playbackDevice);
+            if (playingSound && remotePlayingSound)
+            {
+                groupedSounds->insert({playingSound->id, remotePlayingSound->id});
+                return *playingSound;
+            }
+
+            if (playingSound)
+                stopSound(playingSound->id);
+
+            if (remotePlayingSound)
+                stopSound(remotePlayingSound->id);
+
+            Fancy::fancy.logTime().failure() << "Failed to play sound " << sound.path << std::endl;
+            onError(Enums::ErrorCode::FailedToPlay);
+            return std::nullopt;
+        }
+
+        return *playingSound;
+    }
+    std::optional<PlayingSound> Window::playTextToSpeech(const std::string &text,
+                                                        const std::string &language,
+                                                        double speed)
+    {
+        if (text.empty())
+        {
+            onError(Enums::ErrorCode::TtsEmptyText);
+            return std::nullopt;
+        }
+
+        // blocking: the UI calls this from an async wrapper, so a short stall is fine
+        // compared to shipping a thread pool for a play-once feature.
+        auto result = Tts::speak(text, language, speed, Tts::defaultCacheDir());
+        if (!result.ok)
+        {
+            Fancy::fancy.logTime().failure() << "TTS: " << result.error << std::endl;
+            onError(Enums::ErrorCode::TtsDownloadFailed);
+            return std::nullopt;
+        }
+
+        Sound ttsSound{}; // NOLINT default zero-init is intended: no id, no hotkeys
+        ttsSound.path = result.path;
+        ttsSound.name = text;
+        ttsSound.modifiedDate = static_cast<std::uint64_t>(::time(nullptr));
+
+        auto playing = playSoundObject(ttsSound);
+        return playing;
     }
 #endif
     std::optional<PlayingSound> Window::pauseSound(const std::uint32_t &id)

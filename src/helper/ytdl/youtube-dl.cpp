@@ -108,29 +108,26 @@ namespace Soundux::Objects
                 currentDownload.reset();
             }
 
-            auto youtubeDlCommand = widen(
-                "youtube-dl --extract-audio --audio-format mp3 --no-mtime \"" + url + "\" -o \"" +
-                currentTab->path + "/%(title)s.%(ext)s" + "\"");
-#if defined(_WIN32)
-            currentDownload.emplace(youtubeDlCommand,
-#else
-            currentDownload.emplace(
-                "youtube-dl --extract-audio --audio-format mp3 --no-mtime \"" + url + "\" -o \"" +
-                    currentTab->path + "/%(title)s.%(ext)s" + "\"",
-#endif
-                                    "", [](const char *rawData, std::size_t dataLen) {
-                                        std::string data(rawData, dataLen);
-                                        static const std::regex progressRegex(R"(([0-9.,]+)%.*(ETA (.+)))");
+            auto youtubeDlCommand = "youtube-dl --extract-audio --audio-format mp3 --no-mtime \"" + url +
+                                    "\" -o \"" + currentTab->path + "/%(title)s.%(ext)s" + "\"";
+            auto onProgress = [](const char *rawData, std::size_t dataLen) {
+                std::string data(rawData, dataLen);
+                static const std::regex progressRegex(R"(([0-9.,]+)%.*(ETA (.+)))");
 
-                                        std::smatch match;
-                                        if (std::regex_search(data, match, progressRegex))
-                                        {
-                                            if (match[1].matched && match[3].matched)
-                                            {
-                                                Globals::gGui->onDownloadProgressed(std::stof(match[1]), match[3]);
-                                            }
-                                        }
-                                    });
+                std::smatch match;
+                if (std::regex_search(data, match, progressRegex))
+                {
+                    if (match[1].matched && match[3].matched)
+                    {
+                        Globals::gGui->onDownloadProgressed(std::stof(match[1]), match[3]);
+                    }
+                }
+            };
+#if defined(_WIN32)
+            currentDownload.emplace(Helpers::widen(youtubeDlCommand), L"", onProgress);
+#else
+            currentDownload.emplace(youtubeDlCommand, "", onProgress);
+#endif
 
             Fancy::fancy.logTime().success() << "Started download of " >> url << std::endl;
             auto rtn = currentDownload->get_exit_status() == 0;
