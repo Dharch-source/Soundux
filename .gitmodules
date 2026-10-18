@@ -12,7 +12,7 @@
 	url = https://github.com/btzy/nativefiledialog-extended
 [submodule "src/ui/impl/webview/lib/soundux-ui"]
 	path = src/ui/impl/webview/lib/soundux-ui
-	url = https://github.com/Soundux/soundux-ui/
+	url = https://github.com/Dharch-source/soundux-ui/
 	branch = build
 [submodule "src/ui/impl/webview/lib/webviewpp"]
 	path = src/ui/impl/webview/lib/webviewpp
