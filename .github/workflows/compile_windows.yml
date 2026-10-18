@@ -67,10 +67,13 @@ jobs:
       - name: Run InnoSetup
         shell: pwsh
         run: |
-          $iss = Get-Content deployment/innosetup/Soundux.iss -Raw
-          $iss = $iss -replace '%\$PATH%', "$env:GITHUB_WORKSPACE"
-          Set-Content deployment/innosetup/Soundux.iss -Value $iss
-          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" deployment/innosetup/Soundux.iss
+          $issPath = "deployment/innosetup/Soundux.iss"
+          $iss = Get-Content $issPath -Raw
+          # $PATH is the CI placeholder the upstream sed step replaced with the
+          # checkout root. String.Replace is literal, so no regex escaping here.
+          $iss = $iss.Replace('$PATH', $env:GITHUB_WORKSPACE)
+          Set-Content $issPath -Value $iss -NoNewline
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" $issPath
 
       - name: Upload installer artifact
         uses: actions/upload-artifact@v4
